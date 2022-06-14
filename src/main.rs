@@ -29,21 +29,21 @@ fn main() {
 
     println!("First guess: lares");
 
-    let mut input = String::new();
-
-    io::stdin().read_line(&mut input)
-    .expect("Error reading input");
+    let mut input = get_input();
 
     let characters = to_characters("lares".to_string(), input);
 
-    let wordglr = Wordglr {
-        all_words: vec,
-        cur_words: vec![],
-        characters: characters,
-        game_states: vec![vec![]]
-    };
+    let characters = wordguzzle(characters, vec);
 
-    main();
+    // println!("{:#?}", characters);
+    // let wordglr = Wordglr {
+    //     all_words: vec,
+    //     cur_words: vec![],
+    //     characters: characters,
+    //     game_states: vec![vec![]]
+    // };
+
+    // main();
 }
 
 fn to_characters(guess: String, input: String) -> Vec<Character> {
@@ -53,7 +53,7 @@ fn to_characters(guess: String, input: String) -> Vec<Character> {
     for char in input.chars() {
         let next = match guess_arr.next() {
             Some(item) => item,
-            None => panic!("wtf?")
+            None => continue
         };
 
         if char == '2' {
@@ -68,26 +68,65 @@ fn to_characters(guess: String, input: String) -> Vec<Character> {
     vec
 }
 
+// annoy the user until they input something correctly
+fn get_input() -> String {
+    let mut input = String::new();
+
+    io::stdin().read_line(&mut input)
+    .expect("Error reading input");
+
+    // remove io::stdin carriage return fuckery
+    input.pop()
+    .expect("wtf???");
+    input.pop()
+    .expect("wtf???");
+
+    // check input len
+    if input.chars().count() != 5 {
+        println!("Invalid input length (5)");
+        return get_input()
+    }
+
+    // check if string is only digits
+    if !input.bytes().all(|c| c.is_ascii_digit()) {
+        println!("Input can only be digits");
+        return get_input()
+    }
+
+    // // check if digits are within bounds
+    // if !input.chars().all(|c| c < 3 && > 0) {
+    //     println!("Input can only be digits");
+    //     return get_input()
+    // }
+
+    input
+}
+
 fn wordguzzle(filter: Vec<Character>, words: Vec<String>) -> Vec<String> {
     let mut res: Vec<String> = Vec::new();
     
     for word in words {
-        let refrence = &word;
+        let refrence = word.clone();
         let mut char_arr = refrence.chars();
+        let mut should_push = false;
 
         for character in &filter {
             let next = match char_arr.next() {
                 Some(char) => char,
-                None => panic!("wtf!!!!!!")
+                None => continue
             };
 
             if next == character.char && character.state == States::Confirmed {
-                res.push(word)
+                should_push = true
             } else if next == character.char && character.state == States::Present {
-                res.push(word)
+                should_push = true
             } else if next == character.char && character.state == States::Nah {
-                res.push(word)
+                should_push = true
             }
+        }
+
+        if should_push {
+            res.push(word)
         }
     }
 
