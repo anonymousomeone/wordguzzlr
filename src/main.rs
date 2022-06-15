@@ -1,13 +1,8 @@
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
-
 struct Wordglr {
-    all_words: Vec<String>,
     cur_words: Vec<String>,
-
-    characters: Vec<Character>,
-
-    game_states: Vec<Vec<Character>>
+    filters: Vec<Vec<Character>>
 }
 
 #[derive(Debug)]
@@ -27,23 +22,58 @@ fn main() {
     let vec = read_file("words.txt")
     .expect("File read error");
 
+    // no way fancy message???
+    println!("+=======================================================================================+");
+    println!("+ wordguzzlr v1                                                                         +");
+    println!("+ Input sanitization will catch most typos, however there is no back function (yet)     +");
+    println!("+ Enter digits for character state (0: not present, 1: present, 2: correct)             +");
+    println!("+ Ex:                                                                                   +");
+    println!("+ Guess: lares                                                                          +");
+    println!("+ 00120                                                                                 +");
+    println!("+=======================================================================================+");
     println!("First guess: lares");
 
-    let mut input = get_input();
+    let input = get_input();
 
     let characters = to_characters("lares".to_string(), input);
 
-    let characters = wordguzzle(characters, vec);
+    let filters = vec![characters];
 
-    // println!("{:#?}", characters);
-    // let wordglr = Wordglr {
-    //     all_words: vec,
-    //     cur_words: vec![],
-    //     characters: characters,
-    //     game_states: vec![vec![]]
-    // };
+    let cur_words = wordguzzle(&filters, &vec);
+    if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
-    // main();
+    // println!("{:#?}", cur_words);
+    let wordglr = Wordglr {
+        cur_words,
+        filters
+    };
+
+    wordler(wordglr)
+}
+
+// main loop
+fn wordler(mut wordglr: Wordglr) {
+    loop {
+        println!("Guess: {}", wordglr.cur_words[0]);
+        
+        let input = get_input();
+
+        let characters = to_characters(wordglr.cur_words[0].to_string(), input);
+        // println!("{:?}", characters);
+        wordglr.filters.push(characters);
+
+        let cur_words = wordguzzle(&wordglr.filters, &wordglr.cur_words);
+        if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
+
+        println!("{:#?}", cur_words.len());
+        wordglr.cur_words = cur_words;
+        
+
+        if wordglr.cur_words.len() <= 1 {
+            println!("Final: {}", wordglr.cur_words[0]);
+            break
+        }
+    }
 }
 
 fn to_characters(guess: String, input: String) -> Vec<Character> {
@@ -94,39 +124,103 @@ fn get_input() -> String {
     }
 
     // // check if digits are within bounds
-    // if !input.chars().all(|c| c < 3 && > 0) {
-    //     println!("Input can only be digits");
-    //     return get_input()
-    // }
+    if !input.chars().all(|c| {
+        let digit = c.to_digit(10);
+        let digit = match digit {
+            Some(c) => c,
+            None => panic!("wtf!!!")
+        };
+
+        if digit > 2 {
+            false
+        } else {true}
+    }) {
+        println!("Input not within range (<2)");
+        return get_input()
+    }
 
     input
 }
 
-fn wordguzzle(filter: Vec<Character>, words: Vec<String>) -> Vec<String> {
+// eat words (cum (gfoog) (real))
+fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String> {
     let mut res: Vec<String> = Vec::new();
     
+    let mut confirmeds = 0;
+    let mut yellowed = 0;
+
+    let filter = &filters[filters.len() - 1];
+    for character in filter {
+        match character.state {
+            States::Confirmed => confirmeds += 1,
+            States::Present => yellowed += 1,
+            States::Nah => continue
+        }
+    }
+
+    // println!("{}", yellows);
     for word in words {
         let refrence = word.clone();
         let mut char_arr = refrence.chars();
-        let mut should_push = false;
 
-        for character in &filter {
+        let mut confirmed = 0;
+
+        let mut dont_push = false;
+
+        let mut its = 0;
+        for character in filter {
             let next = match char_arr.next() {
                 Some(char) => char,
                 None => continue
             };
 
             if next == character.char && character.state == States::Confirmed {
-                should_push = true
-            } else if next == character.char && character.state == States::Present {
-                should_push = true
-            } else if next == character.char && character.state == States::Nah {
-                should_push = true
+                // check for confirmed characters
+                confirmed += 1;
+                continue;
             }
-        }
 
-        if should_push {
-            res.push(word)
+            // check for yellow (pee!!!) chars
+            if next == character.char && character.state == States::Present {
+                // check if previous guess's yellow is in the same place
+                for i in 0..filters.len() {
+                    // if so, discard word
+                    if filters[i][its].char == next {
+                        dont_push = true;
+                    }
+                }
+            }
+
+            // check for non present characters
+            if next == character.char && character.state == States::Nah {
+                // discard word if it contains not present chars, however only when that char isnt confirmed or present
+                for i in 0..word.len() {
+                    if !((filter[i].state == States::Confirmed && filter[i].char == next)
+                     || (filter[i].state == States::Present && filter[i].char == next)) {
+                        dont_push = true;
+                    }
+                }
+            }
+            // discard word if non present chars was present in the previous guesses
+            // bug: if two letters are the same and one is yellow and other is not
+            // will discard word anyway
+            for filter in filters {
+                let mut yellows = 0;
+                for char in filter {
+                    // println!("{:?}", char.char == character.char);
+                    if char.char == next && char.state == States::Nah {
+                        yellows += 1;
+                        dont_push = true;
+                    }
+                }
+            }
+
+            its += 1;
+        }
+        
+        if (confirmed == confirmeds) && !dont_push {
+            // println!("{}", dont_push);
+            res.push(word.to_string())
         }
     }
 
@@ -147,7 +241,12 @@ fn read_file(name: &str) -> Result<Vec<String>, io::Error> {
             Err(err) => panic!("Error parsing file: {}", err)
         };
     }
-    println!("{}", vec.capacity());
 
     Ok(vec)
 }
+
+// todo: sort words by how many unique chars they have
+// eliminates more characters
+// fn sort(words: &Vec<String>) {
+
+// }
