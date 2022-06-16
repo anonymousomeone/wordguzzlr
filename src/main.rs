@@ -40,6 +40,8 @@ fn main() {
     let filters = vec![characters];
 
     let cur_words = wordguzzle(&filters, &vec);
+    // todo: fix
+    // let cur_words = sort(cur_words);
     if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
     // println!("{:#?}", cur_words);
@@ -63,9 +65,10 @@ fn wordler(mut wordglr: Wordglr) {
         wordglr.filters.push(characters);
 
         let cur_words = wordguzzle(&wordglr.filters, &wordglr.cur_words);
+        // let cur_words = sort(cur_words);
         if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
-        println!("{:#?}", cur_words.len());
+        // println!("{:#?}", cur_words.len());
         wordglr.cur_words = cur_words;
         
 
@@ -123,7 +126,7 @@ fn get_input() -> String {
         return get_input()
     }
 
-    // // check if digits are within bounds
+    // check if digits are within bounds
     if !input.chars().all(|c| {
         let digit = c.to_digit(10);
         let digit = match digit {
@@ -164,6 +167,7 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
         let mut char_arr = refrence.chars();
 
         let mut confirmed = 0;
+        let mut yellows = 0;
 
         let mut dont_push = false;
 
@@ -184,11 +188,15 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             if next == character.char && character.state == States::Present {
                 // check if previous guess's yellow is in the same place
                 for i in 0..filters.len() {
-                    // if so, discard word
-                    if filters[i][its].char == next {
+                        // if so, discard word
+                        if filters[i][its].char == next {
                         dont_push = true;
                     }
                 }
+            }
+            // check if word has same yellow char but in different place
+            if word.contains(character.char) && character.state == States::Present {
+                yellows += 1;
             }
 
             // check for non present characters
@@ -205,11 +213,9 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             // bug: if two letters are the same and one is yellow and other is not
             // will discard word anyway
             for filter in filters {
-                let mut yellows = 0;
                 for char in filter {
                     // println!("{:?}", char.char == character.char);
                     if char.char == next && char.state == States::Nah {
-                        yellows += 1;
                         dont_push = true;
                     }
                 }
@@ -218,7 +224,7 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             its += 1;
         }
         
-        if (confirmed == confirmeds) && !dont_push {
+        if (confirmed == confirmeds) && (yellowed == yellows) && !dont_push {
             // println!("{}", dont_push);
             res.push(word.to_string())
         }
@@ -245,8 +251,52 @@ fn read_file(name: &str) -> Result<Vec<String>, io::Error> {
     Ok(vec)
 }
 
-// todo: sort words by how many unique chars they have
-// eliminates more characters
-// fn sort(words: &Vec<String>) {
+// shut up!!!
+#[allow(dead_code)]
 
-// }
+// sort words by how many unique chars they have
+// eliminates more characters
+struct Item {
+    string: String,
+    uniqueness: u16
+}
+
+// who asked????
+#[allow(dead_code)]
+
+fn sort(words: Vec<String>) -> Vec<String> {
+    let mut vec: Vec<Item> = Vec::new();
+    for word in words {
+        // O(n^3)?
+        vec.push(Item { uniqueness: unique(&word), string: word })
+    }
+
+    vec.sort_by(|a, b| a.uniqueness.cmp(&b.uniqueness));
+
+    let mut nvec: Vec<String> = Vec::with_capacity(vec.len());
+
+    for item in vec {
+        nvec.push(item.string)
+    }
+    nvec.reverse();
+
+    nvec
+}
+
+fn unique(word: &String) -> u16 {
+    let mut uniqueness = word.len() as u16;
+    let mut its = 0;
+
+    for char in word.chars() {
+        let mut its2 = 0;
+        for char2 in word.chars() {
+            if char2 == char && its2 == its {
+                println!("{}: {}", uniqueness, word);
+                uniqueness -= 1;
+            }
+            its2 +=1;
+        }
+        its += 1;
+    }
+    uniqueness
+}
