@@ -24,16 +24,25 @@ fn main() {
 
     // no way fancy message???
     println!("+=======================================================================================+");
-    println!("+ wordguzzlr v1                                                                         +");
-    println!("+ Input sanitization will catch most typos, however there is no back function (yet)     +");
-    println!("+ Enter digits for character state (0: not present, 1: present, 2: correct)             +");
-    println!("+ Ex:                                                                                   +");
-    println!("+ Guess: lares                                                                          +");
-    println!("+ 00120                                                                                 +");
+    println!("| wordguzzlr v1.2                                                                       |");
+    println!("| Input sanitization will catch most typos, however there is no back function (yet)     |");
+    println!("| Type \"np\" if guessed word isnt present in whichever game your using this in           |"); // more spaces cus of the \ chars
+    println!("| Enter digits for character state (0: not present, 1: present, 2: correct)             |");
+    println!("| Ex:                                                                                   |");
+    println!("| Guess: lares                                                                          |");
+    println!("| 00120                                                                                 |");
     println!("+=======================================================================================+");
     println!("First guess: lares");
 
-    let input = get_input();
+    let mut input = String::new();
+
+    io::stdin().read_line(&mut input)
+    .expect("Error reading input");
+
+    let input = match sanitize(input) {
+        Some(str) => str,
+        None => return main()
+    };
 
     let characters = to_characters("lares".to_string(), input);
 
@@ -41,7 +50,7 @@ fn main() {
 
     let cur_words = wordguzzle(&filters, &vec);
     // todo: fix
-    // let cur_words = sort(cur_words);
+    let cur_words = sort(cur_words);
     if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
     // println!("{:#?}", cur_words);
@@ -58,14 +67,28 @@ fn wordler(mut wordglr: Wordglr) {
     loop {
         println!("Guess: {}", wordglr.cur_words[0]);
         
-        let input = get_input();
+        let mut input = String::new();
+
+        io::stdin().read_line(&mut input)
+        .expect("Error reading input");
+
+        // word isnt present, remove from words list
+        if input.contains("np") {
+            wordglr.cur_words.remove(0);
+            return wordler(wordglr)
+        }
+
+        let input = match sanitize(input) {
+            Some(str) => str,
+            None => return wordler(wordglr)
+        };
 
         let characters = to_characters(wordglr.cur_words[0].to_string(), input);
         // println!("{:?}", characters);
         wordglr.filters.push(characters);
 
         let cur_words = wordguzzle(&wordglr.filters, &wordglr.cur_words);
-        // let cur_words = sort(cur_words);
+        let cur_words = sort(cur_words);
         if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
         // println!("{:#?}", cur_words.len());
@@ -79,6 +102,7 @@ fn wordler(mut wordglr: Wordglr) {
     }
 }
 
+// convert guess and input strings to Characters
 fn to_characters(guess: String, input: String) -> Vec<Character> {
     let mut guess_arr = guess.chars();
     let mut vec: Vec<Character> = Vec::new();
@@ -101,12 +125,8 @@ fn to_characters(guess: String, input: String) -> Vec<Character> {
     vec
 }
 
-// annoy the user until they input something correctly
-fn get_input() -> String {
-    let mut input = String::new();
-
-    io::stdin().read_line(&mut input)
-    .expect("Error reading input");
+// sanitize user input (rubbing alcohol????????)
+fn sanitize(mut input: String) -> Option<String> {
 
     // remove io::stdin carriage return fuckery
     input.pop()
@@ -117,13 +137,13 @@ fn get_input() -> String {
     // check input len
     if input.chars().count() != 5 {
         println!("Invalid input length (5)");
-        return get_input()
+        return None
     }
 
     // check if string is only digits
     if !input.bytes().all(|c| c.is_ascii_digit()) {
         println!("Input can only be digits");
-        return get_input()
+        return None
     }
 
     // check if digits are within bounds
@@ -139,10 +159,10 @@ fn get_input() -> String {
         } else {true}
     }) {
         println!("Input not within range (<2)");
-        return get_input()
+        return None
     }
 
-    input
+    Some(input)
 }
 
 // eat words (cum (gfoog) (real))
@@ -209,17 +229,18 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
                     }
                 }
             }
-            // discard word if non present chars was present in the previous guesses
-            // bug: if two letters are the same and one is yellow and other is not
-            // will discard word anyway
-            for filter in filters {
-                for char in filter {
-                    // println!("{:?}", char.char == character.char);
-                    if char.char == next && char.state == States::Nah {
-                        dont_push = true;
-                    }
-                }
-            }
+            
+            // // discard word if non present chars was present in the previous guesses
+            // // bug: if two letters are the same and one is yellow and other is not
+            // // will discard word anyway
+            // for filter in filters {
+            //     for char in filter {
+            //         // println!("{:?}", char.char == character.char);
+            //         if char.char == next && char.state == States::Nah {
+            //             dont_push = true;
+            //         }
+            //     }
+            // }
 
             its += 1;
         }
@@ -233,6 +254,7 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
     res
 }
 
+// read file
 fn read_file(name: &str) -> Result<Vec<String>, io::Error> {
     // words.txt is 12972 lines
     let mut vec: Vec<String> = Vec::with_capacity(12972);
@@ -251,18 +273,12 @@ fn read_file(name: &str) -> Result<Vec<String>, io::Error> {
     Ok(vec)
 }
 
-// shut up!!!
-#[allow(dead_code)]
-
 // sort words by how many unique chars they have
 // eliminates more characters
 struct Item {
     string: String,
     uniqueness: u16
 }
-
-// who asked????
-#[allow(dead_code)]
 
 fn sort(words: Vec<String>) -> Vec<String> {
     let mut vec: Vec<Item> = Vec::new();
@@ -271,27 +287,28 @@ fn sort(words: Vec<String>) -> Vec<String> {
         vec.push(Item { uniqueness: unique(&word), string: word })
     }
 
-    vec.sort_by(|a, b| a.uniqueness.cmp(&b.uniqueness));
+    vec.sort_by(|a, b| b.uniqueness.cmp(&a.uniqueness));
 
     let mut nvec: Vec<String> = Vec::with_capacity(vec.len());
 
     for item in vec {
         nvec.push(item.string)
     }
-    nvec.reverse();
+    // nvec.reverse();
 
     nvec
 }
 
+// todo: use algor 💀 for calculating reducing factor of word, and ranking by that
 fn unique(word: &String) -> u16 {
-    let mut uniqueness = word.len() as u16;
+    let mut uniqueness = (word.len() + 1) as u16;
     let mut its = 0;
 
     for char in word.chars() {
         let mut its2 = 0;
         for char2 in word.chars() {
-            if char2 == char && its2 == its {
-                println!("{}: {}", uniqueness, word);
+            // println!("{}: {}; {}, {}", uniqueness, word, its, its2);
+            if char2 == char && its2 != its {
                 uniqueness -= 1;
             }
             its2 +=1;
