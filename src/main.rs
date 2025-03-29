@@ -24,7 +24,7 @@ fn main() {
 
     // no way fancy message???
     println!("+=======================================================================================+");
-    println!("| wordguzzlr v1.2                                                                       |");
+    println!("| wordguzzlr v1.3                                                                       |");
     println!("| Input sanitization will catch most typos, however there is no back function (yet)     |");
     println!("| Type \"np\" if guessed word isnt present in whichever game your using this in           |"); // more spaces cus of the \ chars
     println!("| Enter digits for character state (0: not present, 1: present, 2: correct)             |");
@@ -201,6 +201,7 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             if next == character.char && character.state == States::Confirmed {
                 // check for confirmed characters
                 confirmed += 1;
+                its += 1;
                 continue;
             }
 
@@ -208,12 +209,13 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             if next == character.char && character.state == States::Present {
                 // check if previous guess's yellow is in the same place
                 for i in 0..filters.len() {
-                        // if so, discard word
-                        if filters[i][its].char == next {
+                    // if so, discard word
+                    if filters[i][its].char == next {
                         dont_push = true;
                     }
                 }
             }
+
             // check if word has same yellow char but in different place
             if word.contains(character.char) && character.state == States::Present {
                 yellows += 1;
@@ -230,17 +232,17 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
                 }
             }
             
-            // // discard word if non present chars was present in the previous guesses
-            // // bug: if two letters are the same and one is yellow and other is not
-            // // will discard word anyway
-            // for filter in filters {
-            //     for char in filter {
-            //         // println!("{:?}", char.char == character.char);
-            //         if char.char == next && char.state == States::Nah {
-            //             dont_push = true;
-            //         }
-            //     }
-            // }
+            // discard word if non present chars was present in the previous guesses
+            // bug: if two letters are the same and one is yellow and other is not
+            // will discard word anyway
+            for filter in filters {
+                for char in filter {
+                    // println!("{:?}", char.char == character.char);
+                    if char.char == next && char.state == States::Nah {
+                        dont_push = true;
+                    }
+                }
+            }
 
             its += 1;
         }
