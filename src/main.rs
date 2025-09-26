@@ -1,17 +1,20 @@
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
+
+#[derive(Clone)]
 struct Wordglr {
     cur_words: Vec<String>,
-    filters: Vec<Vec<Character>>
+    filters: Vec<Vec<Character>>,
+    prev_states: Vec<Wordglr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Character {
     char: char,
     state: States
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum States {
     Confirmed,
     Present,
@@ -24,8 +27,8 @@ fn main() {
 
     // no way fancy message???
     println!("+=======================================================================================+");
-    println!("| wordguzzlr v1.3                                                                       |");
-    println!("| Input sanitization will catch most typos, however there is no back function (yet)     |");
+    println!("| wordguzzlr v1.4                                                                       |");
+    println!("| Type \"back\" if typo                                                                   |");
     println!("| Type \"np\" if guessed word isnt present in whichever game your using this in           |"); // more spaces cus of the \ chars
     println!("| Enter digits for character state (0: not present, 1: present, 2: correct)             |");
     println!("| Ex:                                                                                   |");
@@ -54,12 +57,15 @@ fn main() {
     if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
 
     // println!("{:#?}", cur_words);
-    let wordglr = Wordglr {
+    let mut wordglr = Wordglr {
         cur_words,
-        filters
+        filters,
+        prev_states: Vec::new(),
     };
 
-    wordler(wordglr)
+    wordglr.prev_states.push(wordglr.clone());
+
+    wordler(wordglr);
 }
 
 // main loop
@@ -75,7 +81,26 @@ fn wordler(mut wordglr: Wordglr) {
         // word isnt present, remove from words list
         if input.contains("np") {
             wordglr.cur_words.remove(0);
-            return wordler(wordglr)
+            return wordler(wordglr);
+        }
+
+        // back function
+        if input.contains("back") {
+            let state = match wordglr.prev_states.pop() {
+                Some(s) => s,
+                None => { println!("Cant back"); continue; }
+            };
+
+            wordglr.cur_words = state.cur_words;
+            wordglr.filters = state.filters;
+
+            // reguzzle
+            let cur_words = wordguzzle(&wordglr.filters, &wordglr.cur_words);
+            let cur_words = sort(cur_words);
+            if cur_words.len() == 0 {panic!("filterer returned nothing?????????? (gfooged)")}
+
+            wordglr.cur_words = cur_words;
+            return wordler(wordglr);
         }
 
         let input = match sanitize(input) {
@@ -99,6 +124,8 @@ fn wordler(mut wordglr: Wordglr) {
             println!("Final: {}", wordglr.cur_words[0]);
             break
         }
+
+        wordglr.prev_states.push(wordglr.clone())
     }
 }
 
@@ -233,14 +260,19 @@ fn wordguzzle(filters: &Vec<Vec<Character>>, words: &Vec<String>) -> Vec<String>
             }
             
             // discard word if non present chars was present in the previous guesses
-            // bug: if two letters are the same and one is yellow and other is not
-            // will discard word anyway
             for filter in filters {
+                let mut nahs = 0;
+                let mut presents = 0;
                 for char in filter {
-                    // println!("{:?}", char.char == character.char);
                     if char.char == next && char.state == States::Nah {
-                        dont_push = true;
+                        nahs += 1;
+                    } else if char.char == next && char.state == States::Present {
+                        presents += 1;
                     }
+                }
+
+                if presents < nahs {
+                    dont_push = true;
                 }
             }
 
