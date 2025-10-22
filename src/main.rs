@@ -335,13 +335,12 @@ fn sort(words: Vec<String>) -> Vec<String> {
 
 // todo: use algor 💀 for calculating reducing factor of word, and ranking by that
 fn unique(word: &String) -> u16 {
-    let mut uniqueness = (word.len() + 1) as u16;
+    let mut uniqueness = (word.len() + 3) as i16;
     let mut its = 0;
 
     for char in word.chars() {
         let mut its2 = 0;
         for char2 in word.chars() {
-            // println!("{}: {}; {}, {}", uniqueness, word, its, its2);
             if char2 == char && its2 != its {
                 uniqueness -= 1;
             }
@@ -349,5 +348,5 @@ fn unique(word: &String) -> u16 {
         }
         its += 1;
     }
-    uniqueness
+    uniqueness.max(0) as u16
 }
